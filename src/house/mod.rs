@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 pub struct SmartHouse {
@@ -52,12 +52,28 @@ impl SmartHouse {
         array
     }
 
-    // pub fn create_report(
-    //     &self,
-    //     /* todo: принять обобщённый тип предоставляющий информацию об устройствах */
-    // ) -> String {
-    //     todo!("перебор комнат и устройств в них для составления отчёта")
-    // }
+    pub fn create_report(&self, provider: &dyn DeviceInfoProvider) -> String {
+        let mut device_report: String = "".to_string();
+        let mut room_devices_map = HashMap::new();
+
+        for room in &self.rooms {
+            let mut devices_vec = Vec::new();
+            for device in &room.devices {
+                if provider.provider_contains(device) {
+                    let provider_device = provider.get_info(room.name.as_str(), device);
+                    devices_vec.push(provider_device)
+                }
+                room_devices_map.insert(room.name.clone(), devices_vec.clone());
+            }
+        }
+
+        for (room, devices) in room_devices_map.iter() {
+            device_report = devices.iter()
+                .map(|device| String::from(device.to_owned() + "\n"))
+                .collect();
+        }
+        device_report
+    }
 }
 
 impl Room {
@@ -73,3 +89,122 @@ impl Room {
         &self.devices
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+pub trait Device {
+    fn get_name(&self) -> &str;
+    fn create_report(&self) -> String;
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum State {
+    Off,
+    On,
+}
+
+pub struct SmartSocket {
+    name: String,
+    state: State,
+}
+
+impl SmartSocket {
+    pub fn new(name: String, state: State) -> Self { SmartSocket { name, state } }
+}
+
+pub struct SmartThermometer {
+    name: String,
+    temperature: String,
+}
+
+impl SmartThermometer {
+    pub fn new(name: String, temperature: String) -> Self { SmartThermometer { name, temperature } }
+}
+
+impl Device for SmartSocket {
+    fn get_name(&self) -> &str {
+        &self.name.as_ref()
+    }
+
+    fn create_report(&self) -> String {
+        format!("SmartSocket: {}, state is {:?}", &self.name, &self.state)
+    }
+}
+
+impl Device for SmartThermometer {
+    fn get_name(&self) -> &str {
+        &self.name.as_ref()
+    }
+
+    fn create_report(&self) -> String {
+        format!("Thermometer: {}, temperature is {:?}", self.name, self.temperature)
+    }
+}
+
+pub trait DeviceInfoProvider {
+    fn provider_contains(&self, device_name: &String) -> bool;
+    fn get_devices(&self) -> Vec<&dyn Device>;
+    fn get_info(&self, room: &str, device: &str) -> String;
+}
+
+pub struct OwningDeviceInfoProvider {
+    pub socket: SmartSocket,
+}
+//
+// struct BorrowingDeviceInfoProvider<'a, 'b> {
+//     socket: &'a SmartSocket,
+//     thermo: &'b SmartThermometer,
+// }
+//
+// impl BorrowingDeviceInfoProvider {
+// }
+
+impl DeviceInfoProvider for OwningDeviceInfoProvider {
+    fn provider_contains(&self, device_name: &String) -> bool {
+        if self.get_devices()
+            .iter()
+            .find(|device| device.get_name() == device_name).is_some() {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn get_devices(&self) -> Vec<&dyn Device> {
+        vec![&self.socket as &dyn Device]
+    }
+
+    fn get_info(&self, room: &str, device: &str) -> String {
+        if self.socket.get_name() == device {
+            (format!("Room: {}, Device {}", room, self.socket.create_report()))
+        } else {
+            "".to_string()
+        }
+    }
+}
+
+// impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
+//     fn get_info(&self, room: &str, device: &str) -> Option<String> {
+//         let devices: HashMap<&str, &dyn Device> = HashMap::from([
+//             (self.socket.get_name(), self.socket as &dyn Device),
+//             (self.thermo.get_name(), self.thermo as &dyn Device),
+//         ]);
+//
+//         extract_info(room, device, devices)
+//     }
+//
+//     fn required_devices(&self) -> Vec<&dyn Device> {
+//         vec![self.socket, self.thermo]
+//     }
+// }
+
+// impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
+//     fn get_name(&self) -> String {
+//         if self.socket
+//         todo!()
+//     }
+//
+//     fn get_info(&self, room: &str, device: &str) -> String {
+//         todo!()
+//     }
+// }
