@@ -1,15 +1,21 @@
-use std::collections::{HashMap, HashSet};
+use crate::provider::DeviceInfoProvider;
+use std::collections::HashMap;
 
-#[derive(Debug)]
+#[allow(unused_variables)]
 pub struct SmartHouse {
     name: String,
     rooms: Vec<Room>,
 }
 
-#[derive(Debug)]
 struct Room {
     name: String,
     devices: Vec<String>,
+}
+
+impl Room {
+    pub fn new(name: String, devices: Vec<String>) -> Self {
+        Room { devices, name }
+    }
 }
 
 impl SmartHouse {
@@ -25,39 +31,29 @@ impl SmartHouse {
     }
 
     pub fn get_rooms(&self) -> [&str; 2] {
-        let rooms = self.rooms
-            .iter()
-            .map(|r| r.name.as_str())
-            .collect::<Vec<&str>>();
-        let slice = rooms.as_slice();
-        let array = match slice.try_into() {
-            Ok(arr) => arr,
-            Err(_) => panic!("Expected a Vec of length {} but it was {}", 2, &rooms.len()),
-        };
-        array
+        let mut rooms: [&str; 2] = ["", ""];
+        for (i, room) in self.rooms.iter().enumerate() {
+            rooms[i] = room.name.as_str();
+        }
+        rooms
     }
 
-    pub fn devices(&self, room: &str) -> [&str; 1] {
-        let mut devices = Vec::new();
+    pub fn devices(&self, room: &str) -> [&str; 2] {
+        let mut devices: [&str; 2] = ["", ""];
         for r in &self.rooms {
             if r.name.as_str() == room {
-                devices = r.devices.iter().map(|d| d.as_str()).collect::<Vec<&str>>();
+                for (i, device) in r.devices.iter().enumerate() {
+                    devices[i] = device.as_str();
+                }
             }
         }
-        let slice = devices.as_slice();
-        let array = match slice.try_into() {
-            Ok(arr) => arr,
-            Err(_) => panic!("Expected a Vec of length {} but it was {}", 1, &devices.len()),
-        };
-        array
+        devices
     }
 
     pub fn create_report(&self, provider: &dyn DeviceInfoProvider) -> String {
-        let mut device_report: String = "".to_string();
         let mut room_devices_map = HashMap::new();
-
+        let mut devices_vec = Vec::new();
         for room in &self.rooms {
-            let mut devices_vec = Vec::new();
             for device in &room.devices {
                 if provider.contains(device) {
                     let provider_device = provider.get_info(room.name.as_str(), device);
@@ -66,143 +62,9 @@ impl SmartHouse {
                 room_devices_map.insert(room.name.clone(), devices_vec.clone());
             }
         }
-
-        for (room, devices) in room_devices_map.iter() {
-            device_report = devices.iter()
-                .map(|device| String::from(device.to_owned() + "\n"))
-                .collect();
-        }
-        device_report
-    }
-}
-
-impl Room {
-    pub fn new(name: String, devices: Vec<String>) -> Self {
-        Room { devices, name }
-    }
-
-    pub fn get_name(&self) -> &str {
-        self.name.as_ref()
-    }
-
-    pub fn get_devices(&self) -> &Vec<String> {
-        &self.devices
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-pub trait Device {
-    fn get_name(&self) -> &str;
-    fn create_report(&self) -> String;
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum State {
-    Off,
-    On,
-}
-
-pub struct SmartSocket {
-    name: String,
-    state: State,
-}
-
-impl SmartSocket {
-    pub fn new(name: String, state: State) -> Self { SmartSocket { name, state } }
-}
-
-pub struct SmartThermometer {
-    name: String,
-    temperature: String,
-}
-
-impl SmartThermometer {
-    pub fn new(name: String, temperature: String) -> Self { SmartThermometer { name, temperature } }
-}
-
-impl Device for SmartSocket {
-    fn get_name(&self) -> &str {
-        &self.name.as_ref()
-    }
-
-    fn create_report(&self) -> String {
-        format!("SmartSocket: {}, state is {:?}", &self.name, &self.state)
-    }
-}
-
-impl Device for SmartThermometer {
-    fn get_name(&self) -> &str {
-        &self.name.as_ref()
-    }
-
-    fn create_report(&self) -> String {
-        format!("Thermometer: {}, temperature is {:?}", self.name, self.temperature)
-    }
-}
-
-pub trait DeviceInfoProvider {
-    fn contains(&self, device_name: &String) -> bool;
-    fn get_devices(&self) -> Vec<&dyn Device>;
-    fn get_info(&self, room: &str, device: &str) -> String;
-}
-
-pub struct OwningDeviceInfoProvider {
-    pub socket: SmartSocket,
-}
-
-pub struct BorrowingDeviceInfoProvider<'a, 'b> {
-    pub(crate) socket: &'a SmartSocket,
-    pub(crate) thermo: &'b SmartThermometer,
-}
-
-impl DeviceInfoProvider for OwningDeviceInfoProvider {
-    fn contains(&self, device_name: &String) -> bool {
-        if self.get_devices()
+        devices_vec
             .iter()
-            .find(|device| device.get_name() == device_name).is_some() {
-            true
-        } else {
-            false
-        }
-    }
-
-    fn get_devices(&self) -> Vec<&dyn Device> {
-        vec![&self.socket as &dyn Device]
-    }
-
-    fn get_info(&self, room: &str, device: &str) -> String {
-        if self.socket.get_name() == device {
-            (format!("Room: {}, Device {}", room, self.socket.create_report()))
-        } else {
-            "".to_string()
-        }
+            .map(|d| d.clone() + "\n")
+            .collect::<String>()
     }
 }
-
-impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
-    fn contains(&self, device_name: &String) -> bool {
-        if self.socket.name == device_name.to_string() {
-            true
-        } else if self.thermo.name == device_name.to_string() {
-            true
-        } else {
-            false
-        }
-    }
-
-    fn get_devices(&self) -> Vec<&dyn Device> {
-        vec![self.socket, self.thermo]
-    }
-
-    fn get_info(&self, room: &str, device: &str) -> String {
-        let mut device_report: String = "".to_string();
-        if self.socket.get_name() == device {
-            device_report = format!("Room: {}, Device {}", room, self.socket.create_report());
-        } else {
-            "".to_string();
-        }
-        device_report
-    }
-}
-
