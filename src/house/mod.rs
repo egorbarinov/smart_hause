@@ -16,7 +16,7 @@ impl SmartHouse {
     pub fn new(name: String) -> Self {
         let room = Room::new(
             "Room".to_string(),
-            Vec::from_iter(vec!["socket".to_string()]),
+            Vec::from_iter(vec!["socket".to_string(), "thermo".to_string()]),
         );
         SmartHouse {
             name,
@@ -24,7 +24,7 @@ impl SmartHouse {
         }
     }
 
-    pub fn get_rooms(&self) -> [&str; 1] {
+    pub fn get_rooms(&self) -> [&str; 2] {
         let rooms = self.rooms
             .iter()
             .map(|r| r.name.as_str())
@@ -32,7 +32,7 @@ impl SmartHouse {
         let slice = rooms.as_slice();
         let array = match slice.try_into() {
             Ok(arr) => arr,
-            Err(_) => panic!("Expected a Vec of length {} but it was {}", 1, &rooms.len()),
+            Err(_) => panic!("Expected a Vec of length {} but it was {}", 2, &rooms.len()),
         };
         array
     }
@@ -59,7 +59,7 @@ impl SmartHouse {
         for room in &self.rooms {
             let mut devices_vec = Vec::new();
             for device in &room.devices {
-                if provider.provider_contains(device) {
+                if provider.contains(device) {
                     let provider_device = provider.get_info(room.name.as_str(), device);
                     devices_vec.push(provider_device)
                 }
@@ -142,7 +142,7 @@ impl Device for SmartThermometer {
 }
 
 pub trait DeviceInfoProvider {
-    fn provider_contains(&self, device_name: &String) -> bool;
+    fn contains(&self, device_name: &String) -> bool;
     fn get_devices(&self) -> Vec<&dyn Device>;
     fn get_info(&self, room: &str, device: &str) -> String;
 }
@@ -150,17 +150,14 @@ pub trait DeviceInfoProvider {
 pub struct OwningDeviceInfoProvider {
     pub socket: SmartSocket,
 }
-//
-// struct BorrowingDeviceInfoProvider<'a, 'b> {
-//     socket: &'a SmartSocket,
-//     thermo: &'b SmartThermometer,
-// }
-//
-// impl BorrowingDeviceInfoProvider {
-// }
+
+pub struct BorrowingDeviceInfoProvider<'a, 'b> {
+    pub(crate) socket: &'a SmartSocket,
+    pub(crate) thermo: &'b SmartThermometer,
+}
 
 impl DeviceInfoProvider for OwningDeviceInfoProvider {
-    fn provider_contains(&self, device_name: &String) -> bool {
+    fn contains(&self, device_name: &String) -> bool {
         if self.get_devices()
             .iter()
             .find(|device| device.get_name() == device_name).is_some() {
@@ -183,28 +180,29 @@ impl DeviceInfoProvider for OwningDeviceInfoProvider {
     }
 }
 
-// impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
-//     fn get_info(&self, room: &str, device: &str) -> Option<String> {
-//         let devices: HashMap<&str, &dyn Device> = HashMap::from([
-//             (self.socket.get_name(), self.socket as &dyn Device),
-//             (self.thermo.get_name(), self.thermo as &dyn Device),
-//         ]);
-//
-//         extract_info(room, device, devices)
-//     }
-//
-//     fn required_devices(&self) -> Vec<&dyn Device> {
-//         vec![self.socket, self.thermo]
-//     }
-// }
+impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
+    fn contains(&self, device_name: &String) -> bool {
+        if self.socket.name == device_name.to_string() {
+            true
+        } else if self.thermo.name == device_name.to_string() {
+            true
+        } else {
+            false
+        }
+    }
 
-// impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
-//     fn get_name(&self) -> String {
-//         if self.socket
-//         todo!()
-//     }
-//
-//     fn get_info(&self, room: &str, device: &str) -> String {
-//         todo!()
-//     }
-// }
+    fn get_devices(&self) -> Vec<&dyn Device> {
+        vec![self.socket, self.thermo]
+    }
+
+    fn get_info(&self, room: &str, device: &str) -> String {
+        let mut device_report: String = "".to_string();
+        if self.socket.get_name() == device {
+            device_report = format!("Room: {}, Device {}", room, self.socket.create_report());
+        } else {
+            "".to_string();
+        }
+        device_report
+    }
+}
+
