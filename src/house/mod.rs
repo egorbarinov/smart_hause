@@ -22,7 +22,7 @@ impl SmartHouse {
     pub fn new(name: String) -> Self {
         let room = Room::new(
             "Room".to_string(),
-            Vec::from_iter(vec!["socket".to_string(), "thermo".to_string()]),
+            vec!["socket".to_string(), "thermo".to_string()],
         );
         SmartHouse {
             name,
