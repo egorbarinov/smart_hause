@@ -1,8 +1,8 @@
 use crate::provider::DeviceInfoProvider;
 use std::collections::HashMap;
 
-#[allow(unused_variables)]
 pub struct SmartHouse {
+    #[allow(dead_code)]
     name: String,
     rooms: Vec<Room>,
 }
