@@ -10,7 +10,7 @@ pub enum State {
 }
 
 pub struct SmartSocket {
-    pub(crate) name: String,
+    pub name: String,
     state: State,
 }
 
