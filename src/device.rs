@@ -21,7 +21,7 @@ impl SmartSocket {
 }
 
 pub struct SmartThermometer {
-    pub(crate) name: String,
+    pub name: String,
     temperature: String,
 }
 
