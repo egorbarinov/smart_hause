@@ -14,8 +14,7 @@ fn main() {
     println!("{}", socket.create_report());
     let socket2 = SmartSocket::new(String::from("socket"), State::Off);
     println!("{}", socket2.create_report());
-    let thermo =
-        SmartThermometer::new(String::from("thermo"), String::from("25.0"));
+    let thermo = SmartThermometer::new(String::from("thermo"), String::from("25.0"));
     println!("{}", thermo.create_report());
     let info_provider1 = OwningDeviceInfoProvider { socket };
     let info_provider2 = BorrowingDeviceInfoProvider {
