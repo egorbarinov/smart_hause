@@ -1,21 +1,13 @@
 use crate::provider::DeviceInfoProvider;
 use std::collections::HashMap;
+use crate::house::room::Room;
+
+pub mod room;
 
 pub struct SmartHouse {
     #[allow(dead_code)]
     name: String,
     rooms: Vec<Room>,
-}
-
-struct Room {
-    name: String,
-    devices: Vec<String>,
-}
-
-impl Room {
-    pub fn new(name: String, devices: Vec<String>) -> Self {
-        Room { devices, name }
-    }
 }
 
 impl SmartHouse {
