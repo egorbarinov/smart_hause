@@ -56,3 +56,34 @@ impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::device::State;
+
+    #[test]
+    fn create_report_for_owning_device() {
+        let socket = SmartSocket::new(String::from("socket"), State::On);
+        let info_provider = OwningDeviceInfoProvider { socket };
+
+        let report = info_provider.get_info("room", "socket");
+        assert!(report.contains("Room: room, Device SmartSocket: socket"));
+    }
+
+    #[test]
+    fn create_report_for_borrowing_device() {
+        let socket = SmartSocket::new(String::from("socket"), State::On);
+        let thermo = SmartThermometer::new(String::from("thermo"), String::from("25"));
+        let info_provider = BorrowingDeviceInfoProvider {
+            socket: &socket,
+            thermo: &thermo,
+        };
+
+        let socket_info = info_provider.get_info("room", "socket");
+        let thermo_info = info_provider.get_info("room", "thermo");
+
+        assert!(socket_info.contains("Room: room, Device SmartSocket: socket"));
+        assert!(thermo_info.contains("Room: room, Device Thermometer: thermo"));
+    }
+}
