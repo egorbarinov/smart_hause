@@ -47,9 +47,6 @@ impl Device for SmartThermometer {
     }
 
     fn create_report(&self) -> String {
-        format!(
-            "Thermometer: {}, temperature is {:?}",
-            self.name, self.temperature
-        )
+        format!("Thermometer: {}, temperature is {:?}", self.name, self.temperature)
     }
 }
