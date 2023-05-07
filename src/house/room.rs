@@ -1,11 +1,13 @@
+use std::collections::HashSet;
+
 pub struct Room {
     pub(crate) name: String,
-    pub(crate) devices: Vec<String>,
+    pub(crate) devices: HashSet<String>,
 }
 
 impl Room {
-    pub fn new(name: String, devices: Vec<String>) -> Self {
-        Room { devices, name }
+    pub fn new(name: String, devices: HashSet<String>) -> Self {
+        Room { name, devices }
     }
 
     pub fn get_name(&self) -> &str {
@@ -13,8 +15,19 @@ impl Room {
     }
 
     #[allow(dead_code)]
-    pub fn devices(&self) -> &Vec<String> {
+    pub fn devices(&self) -> &HashSet<String> {
         &self.devices
+    }
+
+    #[allow(dead_code)]
+    pub fn add_device(&mut self, device: String) -> Option<bool> {
+        if !self.devices.contains(&device) {
+            self.devices.insert(device);
+
+            return Some(true);
+        }
+
+        None
     }
 }
 
@@ -24,18 +37,18 @@ mod test {
 
     #[test]
     fn can_return_room_name() {
-        let room = Room::new(String::from("room"), Vec::new());
+        let room = Room::new(String::from("room"), HashSet::new());
 
         assert_eq!(room.get_name(), "room");
     }
 
     #[test]
     fn can_return_devices() {
-        let mut room = Room::new(String::from("room"), Vec::new());
+        let mut room = Room::new(String::from("room"), HashSet::new());
         let device = String::from("socket");
         let device2 = String::from("thermo");
-        room.devices.push(device);
-        room.devices.push(device2);
+        room.devices.insert(device);
+        room.devices.insert(device2);
 
         assert!(room.devices().contains(&String::from("socket")));
         assert!(room.devices().contains(&String::from("thermo")));

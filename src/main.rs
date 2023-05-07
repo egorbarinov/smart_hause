@@ -5,6 +5,7 @@ mod provider;
 use crate::device::{Device, SmartSocket, SmartThermometer, State};
 use crate::house::room::Room;
 use crate::provider::{BorrowingDeviceInfoProvider, OwningDeviceInfoProvider};
+use std::collections::HashSet;
 
 fn main() {
     let mut house = house::SmartHouse::new(String::from("Smart House"));
@@ -13,15 +14,14 @@ fn main() {
     let socket2 = SmartSocket::new(String::from("socket2"), State::Off);
     println!("{}", socket2.create_report());
     let thermo = SmartThermometer::new(String::from("thermo"), String::from("25.0"));
-    let room = Room::new(String::from("room"), vec![socket.name.clone()]);
-    let room2 = Room::new(
-        String::from("room2"),
-        vec![socket2.name.clone(), thermo.name.clone()],
-    );
+    let mut room = Room::new(String::from("room"), HashSet::new());
+    room.devices.insert(socket.name.clone());
+    let mut room2 = Room::new(String::from("room2"), HashSet::new());
+    room2.devices.insert(socket2.name.clone());
+    room.devices.insert(thermo.name.clone());
     house.add_room(room);
     house.add_room(room2);
 
-    println!("{:?}", &house.get_rooms());
     println!("{:?}", &house.devices("room"));
     println!("{:?}", &house.devices("room2"));
     println!("{}", thermo.create_report());

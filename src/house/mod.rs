@@ -2,73 +2,51 @@ pub mod room;
 
 use crate::house::room::Room;
 use crate::provider::DeviceInfoProvider;
-use std::collections::HashMap;
+use std::collections::hash_map::Entry::Vacant;
+use std::collections::{HashMap, HashSet};
 
 pub struct SmartHouse {
     #[allow(dead_code)]
     name: String,
-    rooms: Vec<Room>,
+    rooms: HashMap<String, Room>,
 }
 
 impl SmartHouse {
     pub fn new(name: String) -> Self {
         SmartHouse {
             name,
-            rooms: Vec::new(),
+            rooms: HashMap::new(),
         }
     }
 
     pub fn add_room(&mut self, room: Room) -> Option<bool> {
-        let root_names = self
-            .rooms
-            .iter()
-            .map(|r| r.get_name())
-            .collect::<Vec<&str>>();
-
-        if !root_names.contains(&room.get_name()) {
-            self.rooms.push(room);
+        if let Vacant(e) = self.rooms.entry(room.get_name().to_string()) {
+            e.insert(room);
             return Some(true);
         }
-
         None
     }
 
-    pub fn get_rooms(&self) -> [&str; 2] {
-        let mut rooms: [&str; 2] = ["", ""];
-        for (i, room) in self.rooms.iter().enumerate() {
-            rooms[i] = room.name.as_str();
-        }
-        rooms
+    pub fn get_rooms(&self) -> &HashMap<String, Room> {
+        &self.rooms
     }
 
-    pub fn devices(&self, room: &str) -> [&str; 2] {
-        let mut devices: [&str; 2] = ["", ""];
-        for r in &self.rooms {
-            if r.name.as_str() == room {
-                for (i, device) in r.devices.iter().enumerate() {
-                    devices[i] = device.as_str();
-                }
-            }
-        }
-        devices
+    pub fn devices(&self, room: &str) -> &HashSet<String> {
+        self.rooms.get(room).unwrap().devices()
     }
 
     pub fn create_report(&self, provider: &dyn DeviceInfoProvider) -> String {
-        let mut room_devices_map = HashMap::new();
-        let mut devices_vec = Vec::new();
-        for room in &self.rooms {
+        let mut report: String = "".to_string();
+        let _ = &self.get_rooms().iter().for_each(|(room_name, room)| {
             for device in &room.devices {
                 if provider.contains(device) {
-                    let provider_device = provider.get_info(room.name.as_str(), device);
-                    devices_vec.push(provider_device)
+                    let device_info = provider.get_info(room_name, device);
+                    report.push_str(&device_info);
+                    report.push('\n');
                 }
-                room_devices_map.insert(room.name.clone(), devices_vec.clone());
             }
-        }
-        devices_vec
-            .iter()
-            .map(|d| d.clone() + "\n")
-            .collect::<String>()
+        });
+        report
     }
 }
 
@@ -81,28 +59,28 @@ mod test {
         device::{SmartSocket, State},
         provider::OwningDeviceInfoProvider,
     };
+    use std::collections::HashSet;
 
     #[test]
     fn can_add_room() {
         let mut house = SmartHouse::new(String::from("smart house"));
-        let room = Room::new(String::from("room"), Vec::new());
+        let room = Room::new(String::from("room"), HashSet::new());
 
         house.add_room(room);
 
-        assert!(house.get_rooms().contains(&"room"));
+        assert!(house.get_rooms().contains_key("room"));
     }
 
     #[test]
     fn cannot_add_room_with_same_name() {
         let mut house = SmartHouse::new(String::from("smart house"));
-        let room1 = Room::new(String::from("room"), Vec::new());
-        let room2 = Room::new(String::from("room"), Vec::new());
+        let room1 = Room::new(String::from("room"), HashSet::new());
+        let room2 = Room::new(String::from("room"), HashSet::new());
 
         house.add_room(room1);
         house.add_room(room2);
 
-        assert_eq!(house.get_rooms().first(), Some(&"room"));
-        assert_eq!(house.get_rooms().last(), Some(&""));
+        assert_eq!(house.get_rooms().len(), 1);
     }
 
     #[test]
@@ -110,11 +88,11 @@ mod test {
         let socket = SmartSocket::new(String::from("socket"), State::On);
         let socket2 = SmartSocket::new(String::from("socket2"), State::Off);
         let thermo = SmartThermometer::new(String::from("thermo"), "25".to_string());
-        let room1 = Room::new("room".to_string(), vec!["socket".to_string()]);
-        let room2 = Room::new(
-            "room2".to_string(),
-            vec!["thermo".to_string(), "socket2".to_string()],
-        );
+        let mut room1 = Room::new("room".to_string(), HashSet::new());
+        room1.devices.insert(socket.name.to_string().clone());
+        let mut room2 = Room::new("room2".to_string(), HashSet::new());
+        room2.devices.insert(socket2.name.to_string().clone());
+        room2.devices.insert(thermo.name.to_string().clone());
         let mut house = SmartHouse::new(String::from("Smart House:"));
         house.add_room(room1);
         house.add_room(room2);
