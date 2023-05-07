@@ -64,7 +64,7 @@ mod test {
 
     #[test]
     fn create_report_for_owning_device() {
-        let socket = SmartSocket::new(String::from("socket"), State::On);
+        let socket = SmartSocket::new("socket".into(), State::On);
         let info_provider = OwningDeviceInfoProvider { socket };
 
         let report = info_provider.get_info("room", "socket");
@@ -73,8 +73,8 @@ mod test {
 
     #[test]
     fn create_report_for_borrowing_device() {
-        let socket = SmartSocket::new(String::from("socket"), State::On);
-        let thermo = SmartThermometer::new(String::from("thermo"), String::from("25"));
+        let socket = SmartSocket::new("socket".into(), State::On);
+        let thermo = SmartThermometer::new("thermo".into(), "25".into());
         let info_provider = BorrowingDeviceInfoProvider {
             socket: &socket,
             thermo: &thermo,

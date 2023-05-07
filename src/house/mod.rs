@@ -36,7 +36,7 @@ impl SmartHouse {
     }
 
     pub fn create_report(&self, provider: &dyn DeviceInfoProvider) -> String {
-        let mut report: String = "".to_string();
+        let mut report: String = "".into();
         let _ = &self.get_rooms().iter().for_each(|(room_name, room)| {
             for device in &room.devices {
                 if provider.contains(device) {
@@ -73,9 +73,9 @@ mod test {
 
     #[test]
     fn cannot_add_room_with_same_name() {
-        let mut house = SmartHouse::new(String::from("smart house"));
-        let room1 = Room::new(String::from("room"), HashSet::new());
-        let room2 = Room::new(String::from("room"), HashSet::new());
+        let mut house = SmartHouse::new("smart house".into());
+        let room1 = Room::new("room".into(), HashSet::new());
+        let room2 = Room::new("room".into(), HashSet::new());
 
         house.add_room(room1);
         house.add_room(room2);
@@ -85,15 +85,15 @@ mod test {
 
     #[test]
     fn create_report() {
-        let socket = SmartSocket::new(String::from("socket"), State::On);
-        let socket2 = SmartSocket::new(String::from("socket2"), State::Off);
-        let thermo = SmartThermometer::new(String::from("thermo"), "25".to_string());
-        let mut room1 = Room::new("room".to_string(), HashSet::new());
+        let socket = SmartSocket::new("socket".into(), State::On);
+        let socket2 = SmartSocket::new("socket2".into(), State::Off);
+        let thermo = SmartThermometer::new("thermo".into(), "25".into());
+        let mut room1 = Room::new("room".into(), HashSet::new());
         room1.devices.insert(socket.name.to_string().clone());
-        let mut room2 = Room::new("room2".to_string(), HashSet::new());
+        let mut room2 = Room::new("room2".into(), HashSet::new());
         room2.devices.insert(socket2.name.to_string().clone());
         room2.devices.insert(thermo.name.to_string().clone());
-        let mut house = SmartHouse::new(String::from("Smart House:"));
+        let mut house = SmartHouse::new("Smart House".into());
         house.add_room(room1);
         house.add_room(room2);
         let info_provider = OwningDeviceInfoProvider { socket };

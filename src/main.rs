@@ -8,15 +8,15 @@ use crate::provider::{BorrowingDeviceInfoProvider, OwningDeviceInfoProvider};
 use std::collections::HashSet;
 
 fn main() {
-    let mut house = house::SmartHouse::new(String::from("Smart House"));
-    let socket = SmartSocket::new(String::from("socket"), State::On);
+    let mut house = house::SmartHouse::new("Smart House".into());
+    let socket = SmartSocket::new("socket".into(), State::On);
     println!("{}", socket.create_report());
-    let socket2 = SmartSocket::new(String::from("socket2"), State::Off);
+    let socket2 = SmartSocket::new("socket2".into(), State::Off);
     println!("{}", socket2.create_report());
-    let thermo = SmartThermometer::new(String::from("thermo"), String::from("25.0"));
-    let mut room = Room::new(String::from("room"), HashSet::new());
+    let thermo = SmartThermometer::new("thermo".into(), "25.0".into());
+    let mut room = Room::new("room".into(), HashSet::new());
     room.devices.insert(socket.name.clone());
-    let mut room2 = Room::new(String::from("room2"), HashSet::new());
+    let mut room2 = Room::new("room2".into(), HashSet::new());
     room2.devices.insert(socket2.name.clone());
     room.devices.insert(thermo.name.clone());
     house.add_room(room);
