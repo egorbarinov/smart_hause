@@ -4,11 +4,31 @@ use crate::house::room::Room;
 use crate::provider::DeviceInfoProvider;
 use std::collections::hash_map::Entry::Vacant;
 use std::collections::{HashMap, HashSet};
+use std::error::Error;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 pub struct SmartHouse {
     #[allow(dead_code)]
     name: String,
     rooms: HashMap<String, Room>,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum ReportError {
+    NoInfoProvided,
+    RoomsNotFound,
+}
+
+impl Error for ReportError {}
+
+impl Display for ReportError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::NoInfoProvided => write!(f, "Devices not found"),
+            Self::RoomsNotFound => write!(f, "Rooms not found"),
+        }
+    }
 }
 
 impl SmartHouse {
@@ -27,26 +47,39 @@ impl SmartHouse {
         None
     }
 
-    pub fn get_rooms(&self) -> &HashMap<String, Room> {
-        &self.rooms
+    pub fn get_rooms(&self) -> Option<&HashMap<String, Room>> {
+        if self.rooms.is_empty() {
+            None
+        } else {
+            Some(&self.rooms)
+        }
     }
 
-    pub fn devices(&self, room: &str) -> &HashSet<String> {
+    pub fn devices(&self, room: &str) -> Option<&HashSet<String>> {
         self.rooms.get(room).unwrap().devices()
     }
 
-    pub fn create_report(&self, provider: &dyn DeviceInfoProvider) -> String {
-        let mut report: String = "".into();
-        let _ = &self.get_rooms().iter().for_each(|(room_name, room)| {
-            for device in &room.devices {
-                if provider.contains(device) {
-                    let device_info = provider.get_info(room_name, device);
-                    report.push_str(&device_info);
-                    report.push('\n');
+    pub fn create_report(&self, provider: &dyn DeviceInfoProvider) -> Result<String, ReportError> {
+        match &self.get_rooms() {
+            None => Err(ReportError::RoomsNotFound),
+            Some(rooms) => {
+                let mut report: String = "".to_string();
+                rooms.iter().for_each(|(room_name, room)| {
+                    if let Some(devices) = room.devices() {
+                        devices.iter().for_each(|device| {
+                            if let Some(device_info) = provider.get_info(room_name, device) {
+                                report.push_str(&device_info);
+                                report.push('\n');
+                            }
+                        })
+                    }
+                });
+                if report.is_empty() {
+                    return Err(ReportError::NoInfoProvided);
                 }
+                Ok(report)
             }
-        });
-        report
+        }
     }
 }
 
@@ -68,7 +101,8 @@ mod test {
 
         house.add_room(room);
 
-        assert!(house.get_rooms().contains_key("room"));
+        assert!(house.get_rooms().unwrap().contains_key("room"));
+        assert!(house.get_rooms().is_some());
     }
 
     #[test]
@@ -80,7 +114,7 @@ mod test {
         house.add_room(room1);
         house.add_room(room2);
 
-        assert_eq!(house.get_rooms().len(), 1);
+        assert_eq!(house.get_rooms().unwrap().len(), 1);
     }
 
     #[test]
@@ -107,11 +141,34 @@ mod test {
 
         assert_eq!(
             report1,
-            "Room: room, Device SmartSocket: socket, state is On\n".to_string()
+            Ok("Room: room, Device SmartSocket: socket, state is On\n".to_string())
         );
-        assert!(report2.contains("Room: room2, Device SmartSocket: socket2, state is Off\n"));
-        assert!(
-            report2.contains("Room: room2, Device Thermometer: thermo, temperature is \"25\"\n")
-        );
+        assert_eq!(report2, Ok("Room: room2, Device SmartSocket: socket2, state is Off\nRoom: room2, Device Thermometer: thermo, temperature is \"25\"\n".to_string()));
+    }
+
+    #[test]
+    fn create_report_return_rooms_not_found_error() {
+        let house = SmartHouse::new("Smart House".into());
+        let socket = SmartSocket::new("socket".into(), State::On);
+        let info_provider = OwningDeviceInfoProvider { socket };
+
+        let report1 = house.create_report(&info_provider);
+
+        assert_eq!(report1, Err(ReportError::RoomsNotFound));
+    }
+
+    #[test]
+    fn create_report_return_no_info_provided_error() {
+        let mut house = SmartHouse::new("Smart House".into());
+        let room1 = Room::new("room".into(), HashSet::new());
+        let room2 = Room::new("room2".into(), HashSet::new());
+        house.add_room(room1);
+        house.add_room(room2);
+        let socket = SmartSocket::new("socket".into(), State::On);
+        let info_provider = OwningDeviceInfoProvider { socket };
+
+        let report1 = house.create_report(&info_provider);
+
+        assert_eq!(report1, Err(ReportError::NoInfoProvided))
     }
 }

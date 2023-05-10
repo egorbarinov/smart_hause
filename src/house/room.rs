@@ -14,9 +14,12 @@ impl Room {
         self.name.as_ref()
     }
 
-    #[allow(dead_code)]
-    pub fn devices(&self) -> &HashSet<String> {
-        &self.devices
+    pub fn devices(&self) -> Option<&HashSet<String>> {
+        if self.devices.is_empty() {
+            None
+        } else {
+            Some(&self.devices)
+        }
     }
 
     #[allow(dead_code)]
@@ -50,8 +53,9 @@ mod test {
         room.devices.insert(device);
         room.devices.insert(device2);
 
-        assert!(room.devices().contains(&"socket".to_string()));
-        assert!(room.devices().contains(&"thermo".to_string()));
-        assert_eq!(room.devices().len(), 2);
+        assert_eq!(room.devices().is_some(), true);
+        assert!(room.devices().unwrap().contains(&"socket".to_string()));
+        assert!(room.devices().unwrap().contains(&"thermo".to_string()));
+        assert_eq!(room.devices().unwrap().len(), 2);
     }
 }

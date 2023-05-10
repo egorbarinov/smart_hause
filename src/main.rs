@@ -34,6 +34,6 @@ fn main() {
     let report2 = house.create_report(&info_provider2);
 
     // Выводим отчёты на экран:
-    println!("Report #1: {report1}");
-    println!("Report #2: {report2}");
+    println!("Report #1: {}", report1.unwrap());
+    println!("Report #2: {}", report2.unwrap());
 }
