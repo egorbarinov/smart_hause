@@ -1,9 +1,8 @@
 use crate::device::{Device, SmartSocket, SmartThermometer};
 
 pub trait DeviceInfoProvider {
-    fn contains(&self, device_name: &str) -> bool;
     fn get_devices(&self) -> Vec<&dyn Device>;
-    fn get_info(&self, room: &str, device: &str) -> String;
+    fn get_info(&self, room: &str, device: &str) -> Option<String>;
 }
 
 pub struct OwningDeviceInfoProvider {
@@ -16,43 +15,43 @@ pub struct BorrowingDeviceInfoProvider<'a, 'b> {
 }
 
 impl DeviceInfoProvider for OwningDeviceInfoProvider {
-    fn contains(&self, device_name: &str) -> bool {
-        self.get_devices()
-            .iter()
-            .any(|device| device.get_name() == device_name)
-    }
-
     fn get_devices(&self) -> Vec<&dyn Device> {
         vec![&self.socket as &dyn Device]
     }
 
-    fn get_info(&self, room: &str, device: &str) -> String {
+    fn get_info(&self, room: &str, device: &str) -> Option<String> {
         if self.socket.get_name() == device {
-            format!("Room: {}, Device {}", room, self.socket.create_report())
+            Some(format!(
+                "Room: {}, Device {}",
+                room,
+                self.socket.create_report()
+            ))
         } else {
-            "".to_string()
+            None
         }
     }
 }
 
 impl<'a, 'b> DeviceInfoProvider for BorrowingDeviceInfoProvider<'a, 'b> {
-    fn contains(&self, device_name: &str) -> bool {
-        if self.socket.name == *device_name {
-            true
-        } else {
-            self.thermo.name == *device_name
-        }
-    }
-
     fn get_devices(&self) -> Vec<&dyn Device> {
         vec![self.socket, self.thermo]
     }
 
-    fn get_info(&self, room: &str, device: &str) -> String {
+    fn get_info(&self, room: &str, device: &str) -> Option<String> {
         if self.socket.get_name() == device {
-            format!("Room: {}, Device {}", room, self.socket.create_report())
+            Some(format!(
+                "Room: {}, Device {}",
+                room,
+                self.socket.create_report()
+            ))
+        } else if self.thermo.get_name() == device {
+            Some(format!(
+                "Room: {}, Device {}",
+                room,
+                self.thermo.create_report()
+            ))
         } else {
-            format!("Room: {}, Device {}", room, self.thermo.create_report())
+            None
         }
     }
 }
@@ -64,17 +63,20 @@ mod test {
 
     #[test]
     fn create_report_for_owning_device() {
-        let socket = SmartSocket::new(String::from("socket"), State::On);
+        let socket = SmartSocket::new("socket".into(), State::On);
         let info_provider = OwningDeviceInfoProvider { socket };
 
         let report = info_provider.get_info("room", "socket");
-        assert!(report.contains("Room: room, Device SmartSocket: socket"));
+        assert_eq!(
+            report,
+            Some("Room: room, Device SmartSocket: socket, state is On".to_string())
+        );
     }
 
     #[test]
     fn create_report_for_borrowing_device() {
-        let socket = SmartSocket::new(String::from("socket"), State::On);
-        let thermo = SmartThermometer::new(String::from("thermo"), String::from("25"));
+        let socket = SmartSocket::new("socket".into(), State::On);
+        let thermo = SmartThermometer::new("thermo".into(), "25".into());
         let info_provider = BorrowingDeviceInfoProvider {
             socket: &socket,
             thermo: &thermo,
@@ -83,7 +85,13 @@ mod test {
         let socket_info = info_provider.get_info("room", "socket");
         let thermo_info = info_provider.get_info("room", "thermo");
 
-        assert!(socket_info.contains("Room: room, Device SmartSocket: socket"));
-        assert!(thermo_info.contains("Room: room, Device Thermometer: thermo"));
+        assert_eq!(
+            socket_info,
+            Some("Room: room, Device SmartSocket: socket, state is On".to_string())
+        );
+        assert_eq!(
+            thermo_info,
+            Some("Room: room, Device Thermometer: thermo, temperature is \"25\"".to_string())
+        );
     }
 }
