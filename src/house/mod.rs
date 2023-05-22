@@ -47,6 +47,11 @@ impl SmartHouse {
         None
     }
 
+    #[allow(dead_code)]
+    pub fn delete_room(&mut self, room_name: &str) -> Option<Room> {
+        self.rooms.remove(room_name)
+    }
+
     pub fn get_rooms(&self) -> Option<&HashMap<String, Room>> {
         if self.rooms.is_empty() {
             None
@@ -103,6 +108,22 @@ mod test {
 
         assert!(house.get_rooms().unwrap().contains_key("room"));
         assert!(house.get_rooms().is_some());
+    }
+
+    #[test]
+    fn can_delete_room() {
+        let mut house = SmartHouse::new(String::from("smart house"));
+        let room = Room::new(String::from("room"), HashSet::new());
+
+        house.add_room(room.clone());
+
+        assert!(house.get_rooms().unwrap().contains_key("room"));
+        assert!(house.get_rooms().is_some());
+
+        let removed_room = house.delete_room("room").unwrap();
+
+        assert_eq!(removed_room, room);
+        assert!(house.get_rooms().is_none());
     }
 
     #[test]
